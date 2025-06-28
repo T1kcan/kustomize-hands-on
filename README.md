@@ -1,10 +1,11 @@
-# Kustomize Hands-on Lab: Multi-Environment Uygulama
 
-Bu çalışma ile Kustomize kullanarak Kubernetes kaynaklarını `base`, `dev`, `prod` ortamları için nasıl özelleştireceğini öğreneceksin. Ayrıca `namespace`, `namePrefix`, `patch`, `configMap`, `secret`, `transformer` gibi ileri düzey özellikleri de pratik edeceğiz.
+# Kustomize Hands-on Lab: Multi-Environment Application
+
+In this lab, you will learn how to customize Kubernetes resources for different environments (`base`, `dev`, `prod`) using **Kustomize**. We’ll also practice advanced features such as `namespace`, `namePrefix`, `patch`, `configMap`, `secret`, and `transformer`.
 
 ---
 
-## Klasör Yapısı
+## Folder Structure
 
 ```bash
 .
@@ -25,8 +26,10 @@ Bu çalışma ile Kustomize kullanarak Kubernetes kaynaklarını `base`, `dev`, 
         |-- kustomization.yaml
         `-- patch.yaml
 ```
+
 ## base/ Manifests
-1. base/deployment.yaml
+
+1. `base/deployment.yaml`
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -48,7 +51,8 @@ spec:
         ports:
         - containerPort: 80
 ```
-2. base/service.yaml
+
+2. `base/service.yaml`
 ```yaml
 apiVersion: v1
 kind: Service
@@ -62,7 +66,8 @@ spec:
       port: 80
       targetPort: 80
 ```
-3. base/labels-transformer.yaml
+
+3. `base/labels-transformer.yaml`
 ```yaml
 apiVersion: builtin
 kind: LabelTransformer
@@ -74,8 +79,9 @@ labels:
 fieldSpecs:
   - path: metadata/labels
     create: true
-```yaml
-4. base/kustomization.yaml
+```
+
+4. `base/kustomization.yaml`
 ```yaml
 resources:
   - deployment.yaml
@@ -98,8 +104,10 @@ secretGenerator:
     literals:
       - PASSWORD=changeme
 ```
+
 ## overlays/dev/ Manifests
-1. overlays/dev/kustomization.yaml
+
+1. `overlays/dev/kustomization.yaml`
 ```yaml
 resources:
   - ../../base
@@ -114,7 +122,8 @@ patchesStrategicMerge:
 commonLabels:
   environment: dev
 ```
-2. overlays/dev/patch.yaml
+
+2. `overlays/dev/patch.yaml`
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -128,8 +137,10 @@ spec:
       - name: my-app
         image: nginx:1.21
 ```
-## overlays/prod/
-1. overlays/prod/kustomization.yaml
+
+## overlays/prod/ Manifests
+
+1. `overlays/prod/kustomization.yaml`
 ```yaml
 resources:
   - ../../base
@@ -144,7 +155,8 @@ patchesStrategicMerge:
 commonLabels:
   environment: prod
 ```
-2. overlays/prod/patch.yaml
+
+2. `overlays/prod/patch.yaml`
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -158,8 +170,10 @@ spec:
       - name: my-app
         image: nginx:1.25
 ```
-## Argocd Manifests
-1. argocd-dev-app.yaml
+
+## ArgoCD Manifests
+
+1. `argocd-dev-app.yaml`
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -180,7 +194,8 @@ spec:
       prune: true
       selfHeal: true
 ```
-2. argocd-prod-app.yaml
+
+2. `argocd-prod-app.yaml`
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -201,57 +216,63 @@ spec:
       prune: true
       selfHeal: true
 ```
-## Uygulama
-Manifestler direkt çalıştırılabilir ya da Gitops aracılığıyla deploy edilebilir.
-### Direkt 
-Namespace Oluştur
+
+## Deployment
+
+You can apply the manifests directly or use a GitOps tool like ArgoCD.
+
+### Direct Method
+
+Create Namespaces:
 ```bash
 kubectl create namespace dev-namespace
 kubectl create namespace prod-namespace
 ```
-Deploy Et
+
+Deploy:
 ```bash
-Copy code
 kubectl apply -k overlays/dev/
 kubectl apply -k overlays/prod/
 ```
-Durum Kontrolü
+
+Check Resources:
 ```bash
 kubectl get all -n dev-namespace
 kubectl get all -n prod-namespace
 ```
-## Temizlik
+
+### Clean Up
 ```bash
 kubectl delete -k overlays/dev/
 kubectl delete -k overlays/prod/
 ```
-### Gitops
-ArgoCD:
+
+### GitOps with ArgoCD
+
+Apply ArgoCD Manifests:
 ```bash
 kubectl apply -f argocd-dev-app.yaml
 kubectl apply -f argocd-prod-app.yaml
 ```
-ArgoCD CLI:
+
+Using ArgoCD CLI:
 ```bash
 argocd login localhost:8080
-argocd app create my-app-dev \
-  --repo https://github.com/T1kcan/kustomize-hands-on \
-  --path overlays/dev \
-  --dest-server https://kubernetes.default.svc \
-  --dest-namespace dev-namespace \
-  --sync-policy automated
+argocd app create my-app-dev   --repo https://github.com/T1kcan/kustomize-hands-on   --path overlays/dev   --dest-server https://kubernetes.default.svc   --dest-namespace dev-namespace   --sync-policy automated
 ```
-Test:
+
+Test Update:
 ```bash
 cd overlays/dev
 vi patch.yaml
-# image: nginx:1.24
+# Change image: nginx:1.24
 git commit -am "Update dev image"
 git push
 ```
-## Sonuç Özeti
-Ortam	Namespace	Image	Replika	Prefix
 
-dev	dev-namespace	nginx:1.21	2	dev-
+## Summary
 
-prod	prod-namespace	nginx:1.25	5	prod-
+| Environment | Namespace       | Image        | Replicas | Prefix  |
+|-------------|------------------|--------------|----------|---------|
+| dev         | dev-namespace    | nginx:1.21   | 2        | dev-    |
+| prod        | prod-namespace   | nginx:1.25   | 5        | prod-   |

@@ -178,5 +178,7 @@ kubectl delete -k overlays/prod/
 ```
 ## Sonuç Özeti
 Ortam	Namespace	Image	Replika	Prefix
+
 dev	dev-namespace	nginx:1.21	2	dev-
+
 prod	prod-namespace	nginx:1.25	5	prod-

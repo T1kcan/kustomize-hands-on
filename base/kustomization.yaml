@@ -1,0 +1,20 @@
+resources:
+  - deployment.yaml
+  - service.yaml
+
+transformers:
+  - labels-transformer.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: my-app
+
+configMapGenerator:
+  - name: app-config
+    literals:
+      - ENV=default
+      - LOG_LEVEL=info
+
+secretGenerator:
+  - name: app-secret
+    literals:
+      - PASSWORD=changeme

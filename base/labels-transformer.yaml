@@ -1,0 +1,10 @@
+apiVersion: builtin
+kind: LabelTransformer
+metadata:
+  name: add-common-labels
+labels:
+  managed-by: kustomize
+  team: platform
+fieldSpecs:
+  - path: metadata/labels
+    create: true

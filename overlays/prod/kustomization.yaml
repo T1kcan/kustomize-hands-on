@@ -1,0 +1,12 @@
+resources:
+  - ../../base
+
+namePrefix: prod-
+
+namespace: prod-namespace
+
+patchesStrategicMerge:
+  - patch.yaml
+
+commonLabels:
+  environment: prod

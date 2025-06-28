@@ -1,0 +1,12 @@
+resources:
+  - ../../base
+
+namePrefix: dev-
+
+namespace: dev-namespace
+
+patchesStrategicMerge:
+  - patch.yaml
+
+commonLabels:
+  environment: dev

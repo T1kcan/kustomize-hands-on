@@ -7,22 +7,26 @@ Bu çalışma ile Kustomize kullanarak Kubernetes kaynaklarını `base`, `dev`, 
 ## Klasör Yapısı
 
 ```bash
-my-kustomize-app/
-├── base/
-│   ├── deployment.yaml
-│   ├── service.yaml
-│   ├── labels-transformer.yaml
-│   └── kustomization.yaml
-├── overlays/
-│   ├── dev/
-│   │   ├── kustomization.yaml
-│   │   └── patch.yaml
-│   └── prod/
-│       ├── kustomization.yaml
-│       └── patch.yaml
+.
+|-- README.md
+|-- argocd
+|   |-- argocd-dev-app.yaml
+|   `-- argocd-prod-app.yaml
+|-- base
+|   |-- deployment.yaml
+|   |-- kustomization.yaml
+|   |-- labels-transformer.yaml
+|   `-- service.yaml
+`-- overlays
+    |-- dev
+    |   |-- kustomization.yaml
+    |   `-- patch.yaml
+    `-- prod
+        |-- kustomization.yaml
+        `-- patch.yaml
 ```
 ## base/ Manifests
-- base/deployment.yaml
+1. base/deployment.yaml
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -44,7 +48,7 @@ spec:
         ports:
         - containerPort: 80
 ```
-- base/service.yaml
+2. base/service.yaml
 ```yaml
 apiVersion: v1
 kind: Service
@@ -58,7 +62,7 @@ spec:
       port: 80
       targetPort: 80
 ```
-- base/labels-transformer.yaml
+3. base/labels-transformer.yaml
 ```yaml
 apiVersion: builtin
 kind: LabelTransformer
@@ -71,7 +75,7 @@ fieldSpecs:
   - path: metadata/labels
     create: true
 ```yaml
-- base/kustomization.yaml
+4. base/kustomization.yaml
 ```yaml
 resources:
   - deployment.yaml
@@ -94,8 +98,8 @@ secretGenerator:
     literals:
       - PASSWORD=changeme
 ```
-- overlays/dev/
-- overlays/dev/kustomization.yaml
+## overlays/dev/ Manifests
+1. overlays/dev/kustomization.yaml
 ```yaml
 resources:
   - ../../base
@@ -110,7 +114,7 @@ patchesStrategicMerge:
 commonLabels:
   environment: dev
 ```
-- overlays/dev/patch.yaml
+2. overlays/dev/patch.yaml
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -124,8 +128,8 @@ spec:
       - name: my-app
         image: nginx:1.21
 ```
-- overlays/prod/
-- overlays/prod/kustomization.yaml
+## overlays/prod/
+1. overlays/prod/kustomization.yaml
 ```yaml
 resources:
   - ../../base
@@ -140,7 +144,7 @@ patchesStrategicMerge:
 commonLabels:
   environment: prod
 ```
-- overlays/prod/patch.yaml
+2. overlays/prod/patch.yaml
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -154,7 +158,52 @@ spec:
       - name: my-app
         image: nginx:1.25
 ```
+## Argocd Manifests
+1. argocd-dev-app.yaml
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kustomize-dev
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/T1kcan/kustomize-hands-on.git
+    targetRevision: main
+    path: overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dev-namespace
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+```
+2. argocd-prod-app.yaml
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kustomize-prod
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/T1kcan/kustomize-hands-on.git
+    targetRevision: main
+    path: overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: prod-namespace
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+```
 ## Uygulama
+Manifestler direkt çalıştırılabilir ya da Gitops aracılığıyla deploy edilebilir.
+### Direkt 
 Namespace Oluştur
 ```bash
 kubectl create namespace dev-namespace
@@ -175,6 +224,30 @@ kubectl get all -n prod-namespace
 ```bash
 kubectl delete -k overlays/dev/
 kubectl delete -k overlays/prod/
+```
+### Gitops
+ArgoCD:
+```bash
+kubectl apply -f argocd-dev-app.yaml
+kubectl apply -f argocd-prod-app.yaml
+```
+ArgoCD CLI:
+```bash
+argocd login localhost:8080
+argocd app create my-app-dev \
+  --repo https://github.com/T1kcan/kustomize-hands-on \
+  --path overlays/dev \
+  --dest-server https://kubernetes.default.svc \
+  --dest-namespace dev-namespace \
+  --sync-policy automated
+```
+Test:
+```bash
+cd overlays/dev
+vi patch.yaml
+# image: nginx:1.24
+git commit -am "Update dev image"
+git push
 ```
 ## Sonuç Özeti
 Ortam	Namespace	Image	Replika	Prefix
